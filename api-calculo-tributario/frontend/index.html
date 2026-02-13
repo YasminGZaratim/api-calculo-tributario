@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Teste API Cálculo Tributário</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 10px;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+      color: #555;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+    }
+    .ncm-info {
+      background-color: #e8f4f8;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #0066cc;
+    }
+    .ncm-info.error {
+      background-color: #ffe8e8;
+      color: #cc0000;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    h3 {
+      color: #333;
+      margin-top: 30px;
+      border-top: 2px solid #ddd;
+      padding-top: 20px;
+    }
+    .resultado {
+      display: none;
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 4px;
+      border-left: 4px solid #007bff;
+    }
+    .resultado.show {
+      display: block;
+    }
+    .resultado p {
+      margin: 8px 0;
+      color: #555;
+    }
+    .resultado strong {
+      color: #333;
+    }
+    .total {
+      background-color: #d4edda;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 4px;
+      border: 1px solid #c3e6cb;
+      font-size: 18px;
+      font-weight: bold;
+      color: #155724;
+      text-align: center;
+    }
+    .error {
+      color: #dc3545;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Cálculo Tributário</h1>
+
+    <label>NCM (Nomenclatura Comum do Mercosul):</label>
+    <input type="text" id="ncm" placeholder="Ex: 62064200" maxlength="8" />
+    <div id="ncmInfo"></div>
+    <small>Dica: Alguns NCMs disponíveis: 62064200 (Camisetas), 85171290 (Eletrônicos), 48201010 (Papelão)</small>
+    <br><br>
+
+    <label>Valor do Produto (R$):</label>
+    <input type="number" id="valorProduto" placeholder="Digite o valor" step="0.01" />
+    <br><br>
+
+    <label>Estado de Origem:</label>
+    <select id="estadoOrigem">
+      <option value="SP">São Paulo (SP)</option>
+      <option value="RJ">Rio de Janeiro (RJ)</option>
+      <option value="MG">Minas Gerais (MG)</option>
+      <option value="ES">Espírito Santo (ES)</option>
+    </select>
+    <br><br>
+
+    <label>Estado de Destino:</label>
+    <select id="estadoDestino">
+      <option value="SP">São Paulo (SP)</option>
+      <option value="RJ">Rio de Janeiro (RJ)</option>
+      <option value="MG">Minas Gerais (MG)</option>
+      <option value="ES">Espírito Santo (ES)</option>
+    </select>
+    <br><br>
+
+    <label>Regime Tributário:</label>
+    <select id="regimeTributario">
+      <option value="SIMPLES_NACIONAL">Simples Nacional</option>
+      <option value="LUCRO_PRESUMIDO">Lucro Presumido</option>
+      <option value="LUCRO_REAL">Lucro Real</option>
+    </select>
+    <br><br>
+
+    <button onclick="calcular()">Calcular Impostos</button>
+
+    <h3>Resultado:</h3>
+    <div id="resultado" class="resultado"></div>
+  </div>
+
+  <script>
+    // Buscar produto quando o usuário sai do campo NCM
+    document.getElementById('ncm').addEventListener('blur', buscarProdutoNCM);
+
+    async function buscarProdutoNCM() {
+      const ncm = document.getElementById('ncm').value.trim();
+      const ncmInfo = document.getElementById('ncmInfo');
+
+      if (!ncm) {
+        ncmInfo.innerHTML = '';
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:3000/api/calculo/ncm/${ncm}`);
+        
+        if (response.ok) {
+          const produto = await response.json();
+          ncmInfo.innerHTML = `
+            <div class="ncm-info">
+              <strong>Produto encontrado:</strong> ${produto.descricao}<br>
+              <strong>Alíquotas:</strong> ICMS ${(produto.icmsState * 100).toFixed(2)}% | IPI ${(produto.ipi * 100).toFixed(2)}% | PIS ${(produto.pis * 100).toFixed(2)}% | COFINS ${(produto.cofins * 100).toFixed(2)}%
+            </div>
+          `;
+        } else {
+          ncmInfo.innerHTML = `<div class="ncm-info error">❌ NCM não encontrado no banco de dados</div>`;
+        }
+      } catch (error) {
+        ncmInfo.innerHTML = `<div class="ncm-info error">❌ Erro ao buscar produto</div>`;
+      }
+    }
+
+    async function calcular() {
+      const ncm = document.getElementById('ncm').value.trim();
+      const valorProduto = parseFloat(document.getElementById('valorProduto').value);
+      const estadoOrigem = document.getElementById('estadoOrigem').value;
+      const estadoDestino = document.getElementById('estadoDestino').value;
+      const regimeTributario = document.getElementById('regimeTributario').value;
+
+      if (!ncm) {
+        exibirErro('Por favor, preencha o NCM!');
+        return;
+      }
+
+      if (!valorProduto || valorProduto <= 0) {
+        exibirErro('Por favor, digite um valor válido!');
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:3000/api/calculo", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            ncm: ncm,
+            valorProduto: valorProduto,
+            estadoOrigem: estadoOrigem,
+            estadoDestino: estadoDestino,
+            regimeTributario: regimeTributario
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById('resultado').innerHTML = `
+            <h4>Detalhamento dos Impostos:</h4>
+            <p><strong>ICMS:</strong> R$ ${data.icms.valor.toFixed(2)} (${(data.icms.aliquota * 100).toFixed(2)}%)</p>
+            <p><strong>IPI:</strong> R$ ${data.ipi.valor.toFixed(2)} (${(data.ipi.aliquota * 100).toFixed(2)}%)</p>
+            <p><strong>PIS:</strong> R$ ${data.pisCofins.pis.valor.toFixed(2)} (${(data.pisCofins.pis.aliquota * 100).toFixed(2)}%)</p>
+            <p><strong>COFINS:</strong> R$ ${data.pisCofins.cofins.valor.toFixed(2)} (${(data.pisCofins.cofins.aliquota * 100).toFixed(2)}%)</p>
+            <div class="total">Total de Impostos: R$ ${data.totalImpostos.toFixed(2)}</div>
+          `;
+          document.getElementById('resultado').classList.add('show');
+        } else {
+          exibirErro(data.erro || 'Erro ao calcular impostos');
+        }
+
+      } catch (error) {
+        exibirErro('Erro ao conectar com a API. Certifique-se de que o servidor está rodando.');
+        console.error(error);
+      }
+    }
+
+    function exibirErro(mensagem) {
+      document.getElementById('resultado').innerHTML = `<p class="error">❌ ${mensagem}</p>`;
+      document.getElementById('resultado').classList.add('show');
+    }
+  </script>
+
+</body>
+</html>
